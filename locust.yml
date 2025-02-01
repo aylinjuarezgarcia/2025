@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: locustfile-configmap  # Cambiado el nombre del ConfigMap
+  namespace: default
+data:
+  locustfile.py: |
+    from locust import HttpUser, task, between
+
+    class RootApiUser(HttpUser):
+        # Este usuario hace peticiones cada 2 segundos al endpoint raíz
+        wait_time = between(5, 50)
+
+        @task
+        def get_root(self):
+            self.client.get("/users")  # Realiza una petición GET al endpoint raíz
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: locust  # Cambiado el nombre del Pod
+  labels:
+    app: locust
+spec:
+  containers:
+    - name: locust
+      image: locustio/locust
+      command: ["locust", "-f", "/mnt/locustfile.py", "--headless", "-u", "2", "-r", "1", "--host=http://flask-api-service:80"]  # Ajustado el comando
+      volumeMounts:
+        - name: locustfile  # Cambiado el nombre del volumeMount
+          mountPath: /mnt
+  volumes:
+    - name: locustfile  # Cambiado el nombre del volumen
+      configMap:
+        name: locustfile-configmap  # Referencia al ConfigMap
